@@ -104,7 +104,7 @@ void __fastcall TfrmMainExample::Button1Click(TObject *Sender)
 
 // ========== РЕАЛИЗАЦИЯ ФИЛЬТРАЦИИ ==========
 
-void TfrmMainExample::FilterData(const std::wstring& filterText)
+void TfrmMainExample::FilterData(const std::string& filterText)
 {
 	if (!vsTreeHandler_) {
 		return;

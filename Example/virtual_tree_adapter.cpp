@@ -111,31 +111,31 @@ void __fastcall TTableTest1TreeHandler::OnFreeNode(
 //---------------------------------------------------------------------------
 
 namespace {
-    // Преобразовать UnicodeString в std::wstring в нижнем регистре
-    std::wstring ToLowerWString(const UnicodeString& str) {
-        std::wstring result = str.c_str();
-        rngs::transform(result, result.begin(), ::towlower);
+    // Преобразовать UnicodeString в std::string (UTF-8) в нижнем регистре
+    std::string ToLowerString(const UnicodeString& str) {
+        std::string result = UTF8String(str).c_str();
+        rngs::transform(result, result.begin(), ::tolower);
         return result;
     }
 
-    // Преобразовать std::wstring в нижний регистр
-    std::wstring ToLowerWString(const std::wstring& str) {
-        std::wstring result = str;
-        rngs::transform(result, result.begin(), ::towlower);
+    // Преобразовать std::string в нижний регистр
+    std::string ToLowerString(const std::string& str) {
+        std::string result = str;
+        rngs::transform(result, result.begin(), ::tolower);
         return result;
     }
 
     // Проверить, содержит ли строка подстроку (регистронезависимо)
-    bool ContainsIgnoreCase(const std::wstring& str, const std::wstring& search) {
-        return str.find(search) != std::wstring::npos;
+    bool ContainsIgnoreCase(const std::string& str, const std::string& search) {
+        return str.find(search) != std::string::npos;
     }
 
     // Проверить, соответствует ли строка TABLE_TEST_1_SOut фильтру
     // Поиск выполняется по всем текстовым полям (регистронезависимо)
-    bool MatchesFilter(const TABLE_TEST_1_SOut& row, const std::wstring& filterLower) {
+    bool MatchesFilter(const TABLE_TEST_1_SOut& row, const std::string& filterLower) {
         // Поиск по ID (как строке)
         {
-            std::wstring idStr = std::to_wstring(row.id);
+            std::string idStr = std::to_string(row.id);
             if (ContainsIgnoreCase(idStr, filterLower)) {
                 return true;
             }
@@ -143,7 +143,7 @@ namespace {
 
         // Поиск по fVarchar
         if (row.fVarchar) {
-            std::wstring value = ToLowerWString(*row.fVarchar);
+            std::string value = ToLowerString(*row.fVarchar);
             if (ContainsIgnoreCase(value, filterLower)) {
                 return true;
             }
@@ -151,7 +151,7 @@ namespace {
 
         // Поиск по fChar
         if (row.fChar) {
-            std::wstring value = ToLowerWString(*row.fChar);
+            std::string value = ToLowerString(*row.fChar);
             if (ContainsIgnoreCase(value, filterLower)) {
                 return true;
             }
@@ -159,7 +159,7 @@ namespace {
 
         // Поиск по fBlobT (текстовый blob)
         if (row.fBlobT) {
-            std::wstring value = ToLowerWString(*row.fBlobT);
+            std::string value = ToLowerString(*row.fBlobT);
             if (ContainsIgnoreCase(value, filterLower)) {
                 return true;
             }
@@ -167,21 +167,21 @@ namespace {
 
         // Поиск по числовым полям (преобразуем в строку)
         if (row.fBigint) {
-            std::wstring value = std::to_wstring(*row.fBigint);
+            std::string value = std::to_string(*row.fBigint);
             if (ContainsIgnoreCase(value, filterLower)) {
                 return true;
             }
         }
 
         if (row.fInteger) {
-            std::wstring value = std::to_wstring(*row.fInteger);
+            std::string value = std::to_string(*row.fInteger);
             if (ContainsIgnoreCase(value, filterLower)) {
                 return true;
             }
         }
 
         if (row.fSmalint) {
-            std::wstring value = std::to_wstring(*row.fSmalint);
+            std::string value = std::to_string(*row.fSmalint);
             if (ContainsIgnoreCase(value, filterLower)) {
                 return true;
             }
@@ -189,7 +189,7 @@ namespace {
 
         // Поиск по Boolean полю
         if (row.fBoolean) {
-            std::wstring value = *row.fBoolean ? L"true" : L"false";
+            std::string value = *row.fBoolean ? "true" : "false";
             if (ContainsIgnoreCase(value, filterLower)) {
                 return true;
             }
@@ -198,7 +198,7 @@ namespace {
         // Поиск по датам и временам (конвертируем в строку через форматтеры)
         if (row.fDate) {
             UnicodeString formatted = example::format::FormatDateOptional(row.fDate);
-            std::wstring value = ToLowerWString(formatted);
+            std::string value = ToLowerString(formatted);
             if (ContainsIgnoreCase(value, filterLower)) {
                 return true;
             }
@@ -206,7 +206,7 @@ namespace {
 
         if (row.fTime) {
             UnicodeString formatted = example::format::FormatTimeOptional(row.fTime);
-            std::wstring value = ToLowerWString(formatted);
+            std::string value = ToLowerString(formatted);
             if (ContainsIgnoreCase(value, filterLower)) {
                 return true;
             }
@@ -214,7 +214,7 @@ namespace {
 
         if (row.fTimeshtamp) {
             UnicodeString formatted = example::format::FormatTimestampOptional(row.fTimeshtamp);
-            std::wstring value = ToLowerWString(formatted);
+            std::string value = ToLowerString(formatted);
             if (ContainsIgnoreCase(value, filterLower)) {
                 return true;
             }
@@ -222,14 +222,14 @@ namespace {
 
         // Поиск по вещественным числам
         if (row.fFloat) {
-            std::wstring value = std::to_wstring(*row.fFloat);
+            std::string value = std::to_string(*row.fFloat);
             if (ContainsIgnoreCase(value, filterLower)) {
                 return true;
             }
         }
 
         if (row.fDoublePrecision) {
-            std::wstring value = std::to_wstring(*row.fDoublePrecision);
+            std::string value = std::to_string(*row.fDoublePrecision);
             if (ContainsIgnoreCase(value, filterLower)) {
                 return true;
             }
@@ -243,7 +243,7 @@ namespace {
 // Реализация фильтрации (C++20 ranges)
 //---------------------------------------------------------------------------
 
-void TTableTest1TreeHandler::ApplyFilter(const std::wstring& filterText) {
+void TTableTest1TreeHandler::ApplyFilter(const std::string& filterText) {
     if (!cache_ || !tree_) {
         return;
     }
@@ -257,7 +257,7 @@ void TTableTest1TreeHandler::ApplyFilter(const std::wstring& filterText) {
     }
 
     // Приводим фильтр к нижнему регистру для сравнения
-    std::wstring filterLower = ToLowerWString(filterText);
+    std::string filterLower = ToLowerString(filterText);
 
     // Используем C++20 ranges для элегантной фильтрации
     // Создаём view индексов [0, 1, 2, ... cache_->size()-1]

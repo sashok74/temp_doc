@@ -46,8 +46,8 @@ public:		// User declarations
 	// Применить фильтр к данным в гриде
 	// Поиск выполняется по всем полям (регистронезависимо)
 	// Параметры:
-	//   filterText - текст для поиска (пустая строка = сброс фильтра)
-	void FilterData(const std::wstring& filterText);
+	//   filterText - текст для поиска (пустая строка = сброс фильтра, UTF-8)
+	void FilterData(const std::string& filterText);
 
 	// Сбросить фильтр (показать все данные)
 	void ResetFilter();

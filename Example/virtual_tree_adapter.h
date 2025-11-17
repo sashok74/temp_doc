@@ -88,8 +88,8 @@ namespace VsTreeAdapter {
 
         // Применить фильтр по тексту (поиск по всем текстовым полям)
         // Параметры:
-        //   filterText - текст для поиска (без учета регистра)
-        void ApplyFilter(const std::wstring& filterText);
+        //   filterText - текст для поиска (без учета регистра, UTF-8)
+        void ApplyFilter(const std::string& filterText);
 
         // Сбросить фильтр (показать все строки)
         void ResetFilter();

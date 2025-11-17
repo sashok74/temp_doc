@@ -40,6 +40,17 @@ protected:
 public:		// User declarations
 	__fastcall TfrmMainExample(TComponent* Owner);
 	__fastcall ~TfrmMainExample();
+
+	// ========== ФИЛЬТРАЦИЯ ==========
+
+	// Применить фильтр к данным в гриде
+	// Поиск выполняется по всем полям (регистронезависимо)
+	// Параметры:
+	//   filterText - текст для поиска (пустая строка = сброс фильтра)
+	void FilterData(const std::wstring& filterText);
+
+	// Сбросить фильтр (показать все данные)
+	void ResetFilter();
 };
 //---------------------------------------------------------------------------
 extern PACKAGE TfrmMainExample *frmMainExample;

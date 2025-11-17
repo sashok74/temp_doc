@@ -60,10 +60,12 @@ namespace VsTreeAdapter {
     {
     private:
         std::vector<TABLE_TEST_1_SOut>* cache_;
+        std::vector<size_t> filteredIndices_;  // Индексы отфильтрованных строк
+        TVirtualStringTree* tree_;              // Указатель на дерево для обновления
 
     public:
-        __fastcall TTableTest1TreeHandler(std::vector<TABLE_TEST_1_SOut>* cache)
-            : cache_(cache) {}
+        __fastcall TTableTest1TreeHandler(std::vector<TABLE_TEST_1_SOut>* cache, TVirtualStringTree* tree)
+            : cache_(cache), tree_(tree) {}
 
         void __fastcall OnInitNode(
             TBaseVirtualTree* Sender,
@@ -81,6 +83,19 @@ namespace VsTreeAdapter {
         void __fastcall OnFreeNode(
             TBaseVirtualTree* Sender,
             PVirtualNode Node);
+
+        // ========== ФИЛЬТРАЦИЯ (C++20) ==========
+
+        // Применить фильтр по тексту (поиск по всем текстовым полям)
+        // Параметры:
+        //   filterText - текст для поиска (без учета регистра)
+        void ApplyFilter(const std::wstring& filterText);
+
+        // Сбросить фильтр (показать все строки)
+        void ResetFilter();
+
+        // Получить количество отфильтрованных строк
+        size_t GetFilteredCount() const { return filteredIndices_.size(); }
     };
 
     //---------------------------------------------------------------------------
@@ -91,6 +106,7 @@ namespace VsTreeAdapter {
     // - Создает 21 колонку с заголовками
     // - Создает и назначает обработчики событий
     // - Настраивает опции дерева
+    // - Инициализирует поддержку фильтрации
     //
     // Параметры:
     //   tree  - указатель на TVirtualStringTree для настройки

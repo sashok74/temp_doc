@@ -84,6 +84,11 @@ namespace VsTreeAdapter {
             TBaseVirtualTree* Sender,
             PVirtualNode Node);
 
+        void __fastcall OnMeasureItem(
+            TBaseVirtualTree* Sender,
+            PVirtualNode Node,
+            int& NodeHeight);
+
         // ========== ФИЛЬТРАЦИЯ (C++20) ==========
 
         // Применить фильтр по тексту (поиск по всем текстовым полям)

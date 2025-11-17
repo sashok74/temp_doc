@@ -106,6 +106,61 @@ void __fastcall TTableTest1TreeHandler::OnFreeNode(
     // NodeData содержит только size_t, не требует деструкции
 }
 
+void __fastcall TTableTest1TreeHandler::OnMeasureItem(
+    TBaseVirtualTree* Sender,
+    PVirtualNode Node,
+    int& NodeHeight)
+{
+    // Проверка кэша
+    if (!cache_ || cache_->empty()) {
+        NodeHeight = 18; // Высота по умолчанию
+        return;
+    }
+
+    // Получить данные узла
+    NodeData* nodeData = static_cast<NodeData*>(Sender->GetNodeData(Node));
+    if (!nodeData) {
+        NodeHeight = 18;
+        return;
+    }
+
+    // Получаем реальный индекс с учетом фильтрации
+    size_t realIndex = (!filteredIndices_.empty())
+        ? (nodeData->rowIndex < filteredIndices_.size() ? filteredIndices_[nodeData->rowIndex] : nodeData->rowIndex)
+        : nodeData->rowIndex;
+
+    if (realIndex >= cache_->size()) {
+        NodeHeight = 18;
+        return;
+    }
+
+    const TABLE_TEST_1_SOut& row = (*cache_)[realIndex];
+
+    // ========== ЛОГИКА ОПРЕДЕЛЕНИЯ ВЫСОТЫ ==========
+    // Вы можете изменить эту логику под свои нужды
+
+    // Пример 1: Увеличенная высота для строк с текстовым BLOB
+    if (row.fBlobT && !row.fBlobT->IsEmpty()) {
+        NodeHeight = 60; // Высокая строка для BLOB
+        return;
+    }
+
+    // Пример 2: Средняя высота для длинных VARCHAR
+    if (row.fVarchar && row.fVarchar->Length() > 50) {
+        NodeHeight = 30; // Средняя высота
+        return;
+    }
+
+    // Пример 3: Выделяем каждую 10-ую строку (визуальные разделители)
+    if (row.id % 10 == 0) {
+        NodeHeight = 25; // Чуть выше обычной
+        return;
+    }
+
+    // Высота по умолчанию
+    NodeHeight = 18;
+}
+
 //---------------------------------------------------------------------------
 // Вспомогательные функции для фильтрации (C++20)
 //---------------------------------------------------------------------------
@@ -394,7 +449,8 @@ TTableTest1TreeHandler* SetupTreeForTableTest1(
 		tree->TreeOptions->SelectionOptions = tree->TreeOptions->SelectionOptions
 			<< Virtualtrees::Types::toFullRowSelect;
 		tree->TreeOptions->MiscOptions = tree->TreeOptions->MiscOptions
-			<< Virtualtrees::Types::toGridExtensions;
+			<< Virtualtrees::Types::toGridExtensions
+			<< Virtualtrees::Types::toVariableNodeHeight;  // Поддержка переменной высоты строк
 		tree->TreeOptions->PaintOptions = tree->TreeOptions->PaintOptions
 			<< Virtualtrees::Types::toShowHorzGridLines << Virtualtrees::Types::toShowVertGridLines;
 
@@ -403,6 +459,7 @@ TTableTest1TreeHandler* SetupTreeForTableTest1(
 		tree->OnInitNode = handler->OnInitNode;
 		tree->OnGetText = handler->OnGetText;
 		tree->OnFreeNode = handler->OnFreeNode;
+		tree->OnMeasureItem = handler->OnMeasureItem;
     }
     __finally {
         // Завершаем блокировку - теперь дерево готово к работе

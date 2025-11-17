@@ -3,11 +3,18 @@
 
 #include "virtual_tree_adapter.h"
 #include "value_formatters.hpp"
+#include <ranges>
+#include <algorithm>
+#include <string>
+#include <cctype>
 
 //---------------------------------------------------------------------------
 #pragma package(smart_init)
 
 namespace VsTreeAdapter {
+
+namespace rngs = std::ranges;
+namespace views = std::views;
 
 // Импортируем типы из generated::queries для удобства
 using generated::queries::TABLE_TEST_1_SOut;
@@ -32,8 +39,12 @@ void __fastcall TTableTest1TreeHandler::OnInitNode(
 {
     NodeData* data = static_cast<NodeData*>(Sender->GetNodeData(Node));
     if (data) {
-        // Индекс узла = индекс в векторе (для корневых узлов)
-        data->rowIndex = Node->Index;
+        // Если есть фильтр, используем filteredIndices_, иначе прямой индекс
+        if (!filteredIndices_.empty()) {
+            data->rowIndex = filteredIndices_[Node->Index];
+        } else {
+            data->rowIndex = Node->Index;
+        }
     }
 }
 
@@ -96,6 +107,201 @@ void __fastcall TTableTest1TreeHandler::OnFreeNode(
 }
 
 //---------------------------------------------------------------------------
+// Вспомогательные функции для фильтрации (C++20)
+//---------------------------------------------------------------------------
+
+namespace {
+    // Преобразовать UnicodeString в std::wstring в нижнем регистре
+    std::wstring ToLowerWString(const UnicodeString& str) {
+        std::wstring result = str.c_str();
+        rngs::transform(result, result.begin(), ::towlower);
+        return result;
+    }
+
+    // Преобразовать std::wstring в нижний регистр
+    std::wstring ToLowerWString(const std::wstring& str) {
+        std::wstring result = str;
+        rngs::transform(result, result.begin(), ::towlower);
+        return result;
+    }
+
+    // Проверить, содержит ли строка подстроку (регистронезависимо)
+    bool ContainsIgnoreCase(const std::wstring& str, const std::wstring& search) {
+        return str.find(search) != std::wstring::npos;
+    }
+
+    // Проверить, соответствует ли строка TABLE_TEST_1_SOut фильтру
+    // Поиск выполняется по всем текстовым полям (регистронезависимо)
+    bool MatchesFilter(const TABLE_TEST_1_SOut& row, const std::wstring& filterLower) {
+        // Поиск по ID (как строке)
+        {
+            std::wstring idStr = std::to_wstring(row.id);
+            if (ContainsIgnoreCase(idStr, filterLower)) {
+                return true;
+            }
+        }
+
+        // Поиск по fVarchar
+        if (row.fVarchar) {
+            std::wstring value = ToLowerWString(*row.fVarchar);
+            if (ContainsIgnoreCase(value, filterLower)) {
+                return true;
+            }
+        }
+
+        // Поиск по fChar
+        if (row.fChar) {
+            std::wstring value = ToLowerWString(*row.fChar);
+            if (ContainsIgnoreCase(value, filterLower)) {
+                return true;
+            }
+        }
+
+        // Поиск по fBlobT (текстовый blob)
+        if (row.fBlobT) {
+            std::wstring value = ToLowerWString(*row.fBlobT);
+            if (ContainsIgnoreCase(value, filterLower)) {
+                return true;
+            }
+        }
+
+        // Поиск по числовым полям (преобразуем в строку)
+        if (row.fBigint) {
+            std::wstring value = std::to_wstring(*row.fBigint);
+            if (ContainsIgnoreCase(value, filterLower)) {
+                return true;
+            }
+        }
+
+        if (row.fInteger) {
+            std::wstring value = std::to_wstring(*row.fInteger);
+            if (ContainsIgnoreCase(value, filterLower)) {
+                return true;
+            }
+        }
+
+        if (row.fSmalint) {
+            std::wstring value = std::to_wstring(*row.fSmalint);
+            if (ContainsIgnoreCase(value, filterLower)) {
+                return true;
+            }
+        }
+
+        // Поиск по Boolean полю
+        if (row.fBoolean) {
+            std::wstring value = *row.fBoolean ? L"true" : L"false";
+            if (ContainsIgnoreCase(value, filterLower)) {
+                return true;
+            }
+        }
+
+        // Поиск по датам и временам (конвертируем в строку через форматтеры)
+        if (row.fDate) {
+            UnicodeString formatted = example::format::FormatDateOptional(row.fDate);
+            std::wstring value = ToLowerWString(formatted);
+            if (ContainsIgnoreCase(value, filterLower)) {
+                return true;
+            }
+        }
+
+        if (row.fTime) {
+            UnicodeString formatted = example::format::FormatTimeOptional(row.fTime);
+            std::wstring value = ToLowerWString(formatted);
+            if (ContainsIgnoreCase(value, filterLower)) {
+                return true;
+            }
+        }
+
+        if (row.fTimeshtamp) {
+            UnicodeString formatted = example::format::FormatTimestampOptional(row.fTimeshtamp);
+            std::wstring value = ToLowerWString(formatted);
+            if (ContainsIgnoreCase(value, filterLower)) {
+                return true;
+            }
+        }
+
+        // Поиск по вещественным числам
+        if (row.fFloat) {
+            std::wstring value = std::to_wstring(*row.fFloat);
+            if (ContainsIgnoreCase(value, filterLower)) {
+                return true;
+            }
+        }
+
+        if (row.fDoublePrecision) {
+            std::wstring value = std::to_wstring(*row.fDoublePrecision);
+            if (ContainsIgnoreCase(value, filterLower)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+} // anonymous namespace
+
+//---------------------------------------------------------------------------
+// Реализация фильтрации (C++20 ranges)
+//---------------------------------------------------------------------------
+
+void TTableTest1TreeHandler::ApplyFilter(const std::wstring& filterText) {
+    if (!cache_ || !tree_) {
+        return;
+    }
+
+    filteredIndices_.clear();
+
+    // Если фильтр пустой, сбросить фильтр
+    if (filterText.empty()) {
+        ResetFilter();
+        return;
+    }
+
+    // Приводим фильтр к нижнему регистру для сравнения
+    std::wstring filterLower = ToLowerWString(filterText);
+
+    // Используем C++20 ranges для элегантной фильтрации
+    // Создаём view индексов [0, 1, 2, ... cache_->size()-1]
+    auto indices = views::iota(size_t{0}, cache_->size());
+
+    // Фильтруем индексы по условию
+    auto filtered = indices
+        | views::filter([this, &filterLower](size_t idx) {
+            return MatchesFilter((*cache_)[idx], filterLower);
+        });
+
+    // Копируем отфильтрованные индексы в вектор
+    rngs::copy(filtered, std::back_inserter(filteredIndices_));
+
+    // Обновляем дерево
+    tree_->BeginUpdate();
+    try {
+        tree_->Clear();
+        tree_->RootNodeCount = filteredIndices_.size();
+    }
+    __finally {
+        tree_->EndUpdate();
+    }
+}
+
+void TTableTest1TreeHandler::ResetFilter() {
+    if (!cache_ || !tree_) {
+        return;
+    }
+
+    filteredIndices_.clear();
+
+    // Обновляем дерево - показываем все строки
+    tree_->BeginUpdate();
+    try {
+        tree_->Clear();
+        tree_->RootNodeCount = cache_->size();
+    }
+    __finally {
+        tree_->EndUpdate();
+    }
+}
+
+//---------------------------------------------------------------------------
 // SetupTreeForTableTest1
 //
 // АДАПТАЦИЯ: При копировании для другой структуры:
@@ -116,8 +322,8 @@ TTableTest1TreeHandler* SetupTreeForTableTest1(
         throw Exception("VirtualStringTree Header is not initialized - missing #pragma link \"VirtualTrees\"?");
     }
 
-    // Создать handler объект
-    TTableTest1TreeHandler* handler = new TTableTest1TreeHandler(cache);
+    // Создать handler объект с поддержкой фильтрации
+    TTableTest1TreeHandler* handler = new TTableTest1TreeHandler(cache, tree);
 
 
     // Размер данных узла

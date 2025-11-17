@@ -53,7 +53,7 @@ void __fastcall TfrmMainExample::Loaded()
 {
 	TForm::Loaded();
 
-	// Теперь vsTree полностью инициализирован и готов к настройке
+	// пїЅпїЅпїЅпїЅпїЅпїЅ vsTree пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 	if (!vsTreeHandler_ && vsTree) {
 		vsTreeHandler_ = VsTreeAdapter::SetupTreeForTableTest1(vsTree, &cachedTreeData_);
 	   //	vsTree->Header->ParentFont = false;
@@ -65,7 +65,7 @@ void __fastcall TfrmMainExample::Loaded()
 
 __fastcall TfrmMainExample::~TfrmMainExample()
 {
-	// Удаляем handler объект
+	// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ handler пїЅпїЅпїЅпїЅпїЅпїЅ
 	if (vsTreeHandler_) {
 		delete vsTreeHandler_;
 		vsTreeHandler_ = nullptr;
@@ -94,11 +94,35 @@ void __fastcall TfrmMainExample::Button1Click(TObject *Sender)
 		const auto rows = fbpp::core::executeQuery<Descriptor>(connection, *transaction, input);
 		transaction->Commit();
 
-		// Заполнение vsTree данными
+		// пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ vsTree пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
 		VsTreeAdapter::FillTreeWithTableTest1(vsTree, rows, cachedTreeData_);
 	}
 	catch (const std::exception& e)
 	{}
+}
+//---------------------------------------------------------------------------
+
+// ========== Р Р•РђР›РР—РђР¦РРЇ Р¤РР›Р¬РўР РђР¦РР ==========
+
+void TfrmMainExample::FilterData(const std::wstring& filterText)
+{
+	if (!vsTreeHandler_) {
+		return;
+	}
+
+	// РџСЂРёРјРµРЅСЏРµРј С„РёР»СЊС‚СЂ С‡РµСЂРµР· handler
+	// Р¤РёР»СЊС‚СЂР°С†РёСЏ РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ РїРѕ РІСЃРµРј РїРѕР»СЏРј (СЂРµРіРёСЃС‚СЂРѕРЅРµР·Р°РІРёСЃРёРјРѕ)
+	vsTreeHandler_->ApplyFilter(filterText);
+}
+
+void TfrmMainExample::ResetFilter()
+{
+	if (!vsTreeHandler_) {
+		return;
+	}
+
+	// РЎР±СЂР°СЃС‹РІР°РµРј С„РёР»СЊС‚СЂ С‡РµСЂРµР· handler
+	vsTreeHandler_->ResetFilter();
 }
 //---------------------------------------------------------------------------
 

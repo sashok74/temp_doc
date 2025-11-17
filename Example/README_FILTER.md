@@ -15,8 +15,8 @@
 // В вашей форме
 void __fastcall TfrmMainExample::edtFilterChange(TObject *Sender)
 {
-    // Получаем текст из поля ввода
-    std::wstring filterText = edtFilter->Text.c_str();
+    // Получаем текст из поля ввода (конвертируем в UTF-8)
+    std::string filterText = UTF8String(edtFilter->Text).c_str();
 
     // Применяем фильтр
     FilterData(filterText);
@@ -39,7 +39,7 @@ void __fastcall TfrmMainExample::btnResetFilterClick(TObject *Sender)
 
 void __fastcall TfrmMainExample::btnApplyClick(TObject *Sender)
 {
-    std::wstring searchText = edtFilter->Text.c_str();
+    std::string searchText = UTF8String(edtFilter->Text).c_str();
     FilterData(searchText);
 
     // Показываем количество найденных записей
@@ -67,7 +67,7 @@ void __fastcall TfrmMainExample::btnResetClick(TObject *Sender)
 // Добавьте событие OnChange для TEdit
 void __fastcall TfrmMainExample::edtFilterChange(TObject *Sender)
 {
-    std::wstring filterText = edtFilter->Text.c_str();
+    std::string filterText = UTF8String(edtFilter->Text).c_str();
 
     // Применяем фильтр сразу при изменении текста
     FilterData(filterText);
@@ -78,15 +78,16 @@ void __fastcall TfrmMainExample::edtFilterChange(TObject *Sender)
 
 ### Публичные методы формы
 
-#### `void FilterData(const std::wstring& filterText)`
+#### `void FilterData(const std::string& filterText)`
 
 Применяет фильтр к данным в гриде.
 
 **Параметры:**
-- `filterText` - текст для поиска (пустая строка сбрасывает фильтр)
+- `filterText` - текст для поиска в UTF-8 (пустая строка сбрасывает фильтр)
 
 **Особенности:**
 - Поиск регистронезависимый
+- Кодировка UTF-8 для поддержки Unicode
 - Поиск выполняется по всем полям:
   - Текстовые поля: `fVarchar`, `fChar`, `fBlobT`
   - Числовые поля: `id`, `fBigint`, `fInteger`, `fSmalint`, `fFloat`, `fDoublePrecision`
@@ -96,16 +97,20 @@ void __fastcall TfrmMainExample::edtFilterChange(TObject *Sender)
 **Пример:**
 ```cpp
 // Найти все записи содержащие "test"
-FilterData(L"test");
+FilterData("test");
 
 // Найти все записи с ID содержащим "123"
-FilterData(L"123");
+FilterData("123");
 
 // Найти булевы значения
-FilterData(L"true");
+FilterData("true");
 
 // Сбросить фильтр
-FilterData(L"");
+FilterData("");
+
+// Пример с преобразованием из TEdit
+std::string text = UTF8String(edtFilter->Text).c_str();
+FilterData(text);
 ```
 
 #### `void ResetFilter()`
@@ -119,9 +124,12 @@ ResetFilter();
 
 ### Методы TTableTest1TreeHandler
 
-#### `void ApplyFilter(const std::wstring& filterText)`
+#### `void ApplyFilter(const std::string& filterText)`
 
 Внутренний метод фильтрации (используется через `FilterData`).
+
+**Параметры:**
+- `filterText` - текст для поиска в UTF-8
 
 #### `void ResetFilter()`
 
@@ -211,10 +219,12 @@ void ApplyFilterByField(const std::wstring& filterText, int fieldIndex) {
 ```cpp
 // В TTableTest1TreeHandler
 void ApplyComplexFilter(
-    const std::wstring& textFilter,
+    const std::string& textFilter,
     std::optional<int> minId,
     std::optional<int> maxId
 ) {
+    std::string filterLower = ToLowerString(textFilter);
+
     auto filtered = views::iota(size_t{0}, cache_->size())
         | views::filter([&](size_t idx) {
             const auto& row = (*cache_)[idx];
@@ -240,17 +250,35 @@ void ApplyComplexFilter(
 Для отладки фильтрации можно добавить логирование:
 
 ```cpp
-void TTableTest1TreeHandler::ApplyFilter(const std::wstring& filterText) {
+void TTableTest1TreeHandler::ApplyFilter(const std::string& filterText) {
     // ... код фильтрации ...
 
     // Логирование результатов
     OutputDebugString(
         UnicodeString::Format(
             L"Filter applied: '%s', found %d of %d records",
-            ARRAYOFCONST((filterText.c_str(),
+            ARRAYOFCONST((UnicodeString(UTF8String(filterText.c_str())),
                          static_cast<int>(filteredIndices_.size()),
                          static_cast<int>(cache_->size())))
         ).c_str()
     );
 }
 ```
+
+## Работа с UTF-8
+
+Все функции фильтрации используют `std::string` с кодировкой UTF-8:
+
+```cpp
+// Преобразование из UnicodeString (TEdit) в std::string (UTF-8)
+std::string filterText = UTF8String(edtFilter->Text).c_str();
+
+// Преобразование обратно в UnicodeString (для отображения)
+UnicodeString displayText = UTF8String(filterText.c_str());
+```
+
+**Преимущества UTF-8:**
+- Совместимость с стандартными C++ строковыми функциями
+- Меньше памяти для ASCII символов
+- Поддержка всех Unicode символов
+- Стандарт для современного C++
